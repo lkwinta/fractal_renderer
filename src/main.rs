@@ -119,7 +119,6 @@ pub fn main() -> Result<(), String> {
                     }
                 },
                 Event::MouseMotion {xrel, yrel, ..} => {
-                    // if event_pump.mouse_state().left() // nie działa bo event pump porzyczone jako mutable w poll event kurwa
                     if left_btn_down {
                         focus[0] += -xrel as f32 / window.size().0 as f32 / zoom;
                         focus[1] += yrel as f32  / window.size().1 as f32 / zoom;
@@ -195,6 +194,7 @@ pub fn main() -> Result<(), String> {
 
                 ui.text("Camera size");
                 {
+                    ui.checkbox("Lock aspect ratio", &mut true);
                     ui.set_next_item_width(-1.0);
                     let _item_width_stack_token = ui.push_item_width(ui.calc_item_width()/2.0);
                     Drag::new("##camera.width").display_format("Width: %f").speed(0.1).build(ui, &mut camera_width);

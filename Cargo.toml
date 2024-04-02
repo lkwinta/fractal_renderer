@@ -6,7 +6,7 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-imgui = {version = "0.11.0", features = ["tables-api"] }
+imgui = {version = "0.11.0", features = ["tables-api", "docking"] }
 imgui-sdl2-support = "0.11.0"
 sdl2 = { version = "0.34.5", features = ["static-link"]} # 0.34.5 is required for imgui-sdl2-support
 imgui-glow-renderer = "0.11.0"
