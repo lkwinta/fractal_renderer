@@ -1,6 +1,4 @@
 #version 460
-#extension GL_NV_gpu_shader_fp64 : enable
-#extension GL_NV_gpu_shader5 : enable
 
 in vec4 gl_FragCoord;
 
@@ -15,13 +13,13 @@ uniform vec2 julia_const = vec2(-0.8f, 0.156f);
 
 int check_convergence()
 {
-    float32_t real = (gl_FragCoord.x / screen_size.x) * (x_axis_range.y - x_axis_range.x) + x_axis_range.x;
-    float32_t imag = (gl_FragCoord.y / screen_size.y) * (y_axis_range.y - y_axis_range.x) + y_axis_range.x;
+    float real = (gl_FragCoord.x / screen_size.x) * (x_axis_range.y - x_axis_range.x) + x_axis_range.x;
+    float imag = (gl_FragCoord.y / screen_size.y) * (y_axis_range.y - y_axis_range.x) + y_axis_range.x;
 
     int iterations = 0;
 
-    float32_t const_real = real;
-    float32_t const_imag = imag;
+    float const_real = real;
+    float const_imag = imag;
 
     if(julia) {
         const_real = julia_const.x;
@@ -30,11 +28,11 @@ int check_convergence()
 
     while (iterations < max_iterations)
     {
-        float32_t tmp_real = real;
+        float tmp_real = real;
         real = (real * real - imag * imag) + const_real;
         imag = (2.0 * tmp_real * imag) + const_imag;
 
-        float32_t dist = real * real + imag * imag;
+        float dist = real * real + imag * imag;
 
         if (dist > 4.0)
             break;
