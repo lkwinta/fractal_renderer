@@ -3,8 +3,10 @@ use crate::renderer::{Program, Shader};
 use crate::resources::Resources;
 use gl;
 use gl::types::{GLuint, GLvoid};
+use crate::ui::state_instructions::{FractalInstruction, FractalType};
 
-pub struct MandelbrotRenderer {
+
+pub struct FractalRenderer {
     program: Program,
 
     vertex_array: GLuint,
@@ -12,7 +14,7 @@ pub struct MandelbrotRenderer {
     element_buffer: GLuint,
 }
 
-impl MandelbrotRenderer {
+impl FractalRenderer {
     const VERTICES: [f32; 12] = [
         -1.0, -1.0, 0.0,
         1.0, 1.0, 0.0,
@@ -93,6 +95,25 @@ impl MandelbrotRenderer {
         }
     }
 
+    pub fn handle_instruction(&self, instruction: &FractalInstruction) {
+        match instruction {
+            FractalInstruction::FractalIterations(iterations) => self.set_max_iterations(*iterations),
+            FractalInstruction::FractalChoice(fractal) => {
+                match fractal {
+                    FractalType::Julia(constant) => {
+                        self.set_julia(true);
+                        self.set_julia_constant(constant[0], constant[1]);
+                    }
+                    FractalType::Mandelbrot => self.set_julia(false)
+                }
+            }
+            FractalInstruction::FractalAxisRange { x, y } => {
+                self.set_x_axis_range(x[0], x[1]);
+                self.set_y_axis_range(y[0], y[1]);
+            }
+        }
+    }
+
     pub fn set_x_axis_range(&self, x: f32, y: f32) {
         self.program.use_program();
         self.program.set_f32_2(c"x_axis_range", x, y).unwrap();
@@ -129,7 +150,7 @@ impl MandelbrotRenderer {
     }
 }
 
-impl Drop for MandelbrotRenderer {
+impl Drop for FractalRenderer {
     fn drop(&mut self) {
         unsafe {
             gl::DeleteVertexArrays(1, &self.vertex_array);
