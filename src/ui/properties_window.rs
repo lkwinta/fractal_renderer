@@ -3,9 +3,9 @@ use crate::ui::state_instructions::FractalInstruction::{FractalAxisRange, Fracta
 use crate::ui::state_instructions::FractalType::{Julia, Mandelbrot};
 use crate::ui::state_instructions::{FractalInstruction, Observer, ObserverEvent, StateInstruction};
 
-pub struct PropertiesWindow<'a> {
-    items: Vec<&'a str>,
-    selected: &'a str,
+pub struct PropertiesWindow {
+    items: Vec<String>,
+    selected_index: usize,
 
     julia_constant: [f32; 2],
     zoom: f32,
@@ -21,11 +21,11 @@ pub struct PropertiesWindow<'a> {
     current_height: i32
 }
 
-impl Default for PropertiesWindow<'_> {
+impl Default for PropertiesWindow {
     fn default() -> Self {
-        let items = vec!["Mandelbrot", "Julia"];
+        let items = vec!["Mandelbrot".into(), "Julia".into()];
         Self {
-            selected: &items[0],
+            selected_index: 0,
             items,
 
             julia_constant: [-0.8, 0.156],
@@ -44,7 +44,7 @@ impl Default for PropertiesWindow<'_> {
     }
 }
 
-impl PropertiesWindow<'_> {
+impl PropertiesWindow {
     pub fn draw(&mut self, ui: &mut Ui, current_width: i32, current_height: i32) -> Vec<FractalInstruction> {
         self.current_width = current_width;
         self.current_height = current_height;
@@ -62,23 +62,23 @@ impl PropertiesWindow<'_> {
                 ui.text("Fractal");
                 ui.same_line();
                 ui.set_next_item_width(-1.0);
-                if let Some(_cb) = ui.begin_combo("##fractal_combo", self.selected) {
+                if let Some(_cb) = ui.begin_combo("##fractal_combo", &self.items[self.selected_index]) {
                     for cur in &self.items {
-                        if &self.selected == cur {
+                        if &self.items[self.selected_index] == cur {
                             // Auto-scroll to selected item
                             ui.set_item_default_focus();
                         }
                         // Create a "selectable"
                         let clicked = ui.selectable_config(cur)
-                            .selected(&self.selected == cur)
+                            .selected(&self.items[self.selected_index] == cur)
                             .build();
                         // When item is clicked, store it
                         if clicked {
-                            self.selected = cur;
+                            self.selected_index = self.items.iter().position(|item| item == cur).unwrap();
                         }
                     }
                 }
-                if self.selected == "Julia" {
+                if self.items[self.selected_index] == "Julia" {
                     ui.text("Julia constant");
 
                     {
@@ -134,7 +134,7 @@ impl PropertiesWindow<'_> {
     }
 }
 
-impl Observer for PropertiesWindow<'_> {
+impl Observer for PropertiesWindow {
     fn notify(&mut self, event: &ObserverEvent) {
         match event {
             ObserverEvent::Zoom(zoom) => self.zoom *= zoom,

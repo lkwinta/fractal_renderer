@@ -1,16 +1,16 @@
 use std::cell::RefCell;
-use std::rc::Weak;
+use std::rc::{Rc, Weak};
 use sdl2::event::Event;
 use sdl2::keyboard::Keycode;
 use crate::ui::state_instructions::{Observable, Observer, ObserverEvent};
 
 
-pub struct InputHandler<'a> {
+pub struct InputHandler {
     left_btn_down: bool,
-    observers: Vec<&'a RefCell<dyn Observer>>
+    observers: Vec<Rc<RefCell<dyn Observer>>>
 }
 
-impl Default for InputHandler<'_> {
+impl Default for InputHandler {
     fn default() -> Self {
         Self {
             left_btn_down: false,
@@ -19,7 +19,7 @@ impl Default for InputHandler<'_> {
     }
 }
 
-impl InputHandler<'_> {
+impl InputHandler {
     pub fn handle_input(&mut self, event: &Event) -> bool {
         match event {
             Event::Quit { .. }
@@ -64,8 +64,8 @@ impl InputHandler<'_> {
     }
 }
 
-impl<'a> Observable<'a> for InputHandler<'a> {
-    fn register(&mut self, observer: &'a RefCell<dyn Observer>) {
+impl Observable<'_> for InputHandler {
+    fn register(&mut self, observer: Rc<RefCell<dyn Observer>>) {
         self.observers.push(observer)
     }
 }

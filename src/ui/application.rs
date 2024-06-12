@@ -7,27 +7,27 @@ use crate::ui::state_instructions::Observable;
 use crate::ui::state_instructions::StateInstruction::Close;
 use crate::ui::window::Window;
 
-pub struct Application<'a>{
+pub struct Application {
     window: Window,
     fractal_renderer: FractalRenderer,
-    properties_window: RefCell<PropertiesWindow<'a>>,
-    input_handler: InputHandler<'a>,
+    properties_window: Rc<RefCell<PropertiesWindow>>,
+    input_handler: InputHandler,
 }
 
-impl Application<'static> {
-    pub fn new() -> Self {
+impl Application {
+    pub fn new() -> Application {
         let window = Window::new();
         let fractal_renderer = FractalRenderer::new();
-        let mut properties_window = PropertiesWindow::default();
+        let properties_window = PropertiesWindow::default();
         let mut input_handler = InputHandler::default();
 
-        let properties_window_refcell = RefCell::new(properties_window);
-        input_handler.register(&properties_window_refcell);
+        let properties_window_refcell = Rc::new(RefCell::new(properties_window));
+        input_handler.register(properties_window_refcell.clone());
 
         Self {
             window,
             fractal_renderer,
-            properties_window: properties_window_refcell,
+            properties_window: properties_window_refcell.clone(),
             input_handler,
         }
     }
@@ -54,6 +54,8 @@ impl Application<'static> {
         self.properties_window.borrow_mut().draw(&mut ui, self.window.window.size().0 as i32, self.window.window.size().1 as i32)
             .iter()
             .for_each(|instruction| self.fractal_renderer.handle_instruction(instruction));
+
+        ui.show_metrics_window(&mut true);
 
         let draw_data = self.window.imgui.render();
 

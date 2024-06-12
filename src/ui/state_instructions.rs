@@ -1,5 +1,5 @@
 use std::cell::RefCell;
-use std::rc::Weak;
+use std::rc::{Rc, Weak};
 
 pub enum FractalType {
     Julia([f32; 2]),
@@ -34,6 +34,6 @@ pub trait Observer {
 }
 
 pub trait Observable<'a> {
-    fn register(&mut self, observer: &'a RefCell<dyn Observer>);
+    fn register(&mut self, observer: Rc<RefCell<dyn Observer>>);
 }
 
