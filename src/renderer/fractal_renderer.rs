@@ -1,11 +1,14 @@
 use std::path::Path;
-use crate::renderer::{Program, Shader};
-use crate::resources::Resources;
+
 use gl;
 use gl::types::{GLuint, GLvoid};
+
 use crate::ui::event_observer::{FractalType, Observer, ObserverEvent};
+use crate::renderer::{Program, Shader};
+use crate::resources::Resources;
 
-
+/// OpenGL wrapper around the fractal rendering shader program
+/// hides the details of the shader program and provides a simple interface to set the uniforms
 pub struct FractalRenderer {
     program: Program,
 
@@ -119,6 +122,10 @@ impl FractalRenderer {
         self.program.set_i32(c"max_iterations", iterations).unwrap();
     }
 
+    pub fn set_hsv_scale(&self, h: f32, s: f32, v: f32) {
+        self.program.use_program();
+        self.program.set_f32_3(c"hsv_scale", h, s, v).unwrap();
+    }
 
     pub fn render(&self, x: f32, y: f32) {
         self.program.use_program();
@@ -148,6 +155,7 @@ impl Observer for FractalRenderer {
                 self.set_x_axis_range(x[0], x[1]);
                 self.set_y_axis_range(y[0], y[1]);
             },
+            ObserverEvent::FractalHSVScaleChange { h, s, v } => self.set_hsv_scale(*h, *s, *v),
             _ => { eprint!("Received unknown event in fractal_renderer!") }
         }
     }

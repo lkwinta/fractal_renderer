@@ -10,6 +10,7 @@ uniform vec2 y_axis_range = vec2(-1.0f, 1.0f);
 uniform int max_iterations = 500;
 uniform bool julia = true;
 uniform vec2 julia_const = vec2(-0.8f, 0.156f);
+uniform vec3 hsv_scale = vec3(1.0f, 1.0f, 1.0f);
 
 int check_convergence()
 {
@@ -58,9 +59,9 @@ vec4 return_color()
         return vec4(0.0f, 0.0f, 0.0f, 1.0f);
     }
 
-    float hue = float(iter) / float(max_iterations);
-    float saturation = 1.0f;
-    float value = 1.0f;
+    float hue = hsv_scale.x *  float(iter) / float(max_iterations);
+    float saturation = hsv_scale.y * 1.0f;
+    float value = hsv_scale.z * 1.0f;
 
     vec3 color_rgb = hsv2rgb(vec3(hue, saturation, value));
 

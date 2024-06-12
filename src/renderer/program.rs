@@ -3,6 +3,10 @@ use crate::renderer::{Error, Shader};
 use gl;
 use gl::types::{GLchar, GLuint};
 
+/// Wrapper around an OpenGL shader program
+/// hides all unsafe calls and provides a simple interface to set the uniforms
+/// and use the program for rendering
+/// also includes a drop implementation to delete the program when it goes out of scope
 pub struct Program {
     pub program_id: GLuint,
 }
@@ -93,6 +97,7 @@ impl Program {
     set_shader_uniform!(set_f32, gl::Uniform1f, x: f32);
     set_shader_uniform!(set_i32, gl::Uniform1i, x: i32);
     set_shader_uniform!(set_f32_2, gl::Uniform2f, x: f32, y: f32);
+    set_shader_uniform!(set_f32_3, gl::Uniform3f, x: f32, y: f32, z: f32);
     set_shader_uniform!(set_bool, gl::Uniform1i, x: bool, i32);
 }
 

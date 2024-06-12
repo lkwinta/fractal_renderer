@@ -35,6 +35,17 @@ impl InputHandler {
                         self.notify_observers(ObserverEvent::UnZoom(1.1))
                     }
                 },
+            Event::KeyDown {keycode, ..} => {
+                match keycode {
+                    Some(Keycode::W) => self.notify_observers(ObserverEvent::Translate{ xrel: 0, yrel: -10}),
+                    Some(Keycode::S) => self.notify_observers(ObserverEvent::Translate{ xrel: 0, yrel: 10}),
+                    Some(Keycode::A) => self.notify_observers(ObserverEvent::Translate{ xrel: -10, yrel: 0}),
+                    Some(Keycode::D) => self.notify_observers(ObserverEvent::Translate{ xrel: 10, yrel: 0}),
+                    Some(Keycode::Equals) => self.notify_observers(ObserverEvent::Zoom(1.1)),
+                    Some(Keycode::Minus) => self.notify_observers(ObserverEvent::UnZoom(1.1)),
+                    _ => {}
+                }
+            },
             Event::MouseButtonDown {mouse_btn, ..} => {
                 if *mouse_btn == sdl2::mouse::MouseButton::Left {
                     self.left_btn_down = true;

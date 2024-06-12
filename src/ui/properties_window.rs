@@ -3,12 +3,14 @@ use std::rc::Rc;
 use imgui::{Drag, Ui};
 use crate::ui::event_observer::FractalType::{Julia, Mandelbrot};
 use crate::ui::event_observer::{Observable, Observer, ObserverEvent::{FractalIterations, FractalChoice, FractalAxisRange}, ObserverEvent};
+use crate::ui::event_observer::ObserverEvent::FractalHSVScaleChange;
 
 pub struct PropertiesWindow {
     items: Vec<String>,
     selected_index: usize,
 
     julia_constant: [f32; 2],
+    hsv_scale: [f32; 3],
     zoom: f32,
     focus: [f32; 2],
     camera_width: f32,
@@ -33,6 +35,7 @@ impl Default for PropertiesWindow {
             items,
 
             julia_constant: [-0.8, 0.156],
+            hsv_scale: [1.0, 1.0, 1.0],
             zoom: 1.0,
             focus: [0.0, 0.0],
             camera_width: 2.0,
@@ -61,40 +64,13 @@ impl PropertiesWindow {
             .collapsible(false)
             .resizable(false)
             .build(|| {
-                ui.text("Fractal");
-                ui.same_line();
-                ui.set_next_item_width(-1.0);
-                if let Some(_cb) = ui.begin_combo("##fractal_combo", &self.items[self.selected_index]) {
-                    for cur in &self.items {
-                        if &self.items[self.selected_index] == cur {
-                            // Auto-scroll to selected item
-                            ui.set_item_default_focus();
-                        }
-                        // Create a "selectable"
-                        let clicked = ui.selectable_config(cur)
-                            .selected(&self.items[self.selected_index] == cur)
-                            .build();
-                        // When item is clicked, store it
-                        if clicked {
-                            self.selected_index = self.items.iter().position(|item| item == cur).unwrap();
-                        }
-                    }
+                if Drag::new("##max_iterations").display_format("Max iterations: %d").speed(1.0).build(ui, &mut self.max_iterations) {
+                    self.notify_observers(FractalIterations(self.max_iterations))
                 }
-                if self.items[self.selected_index] == "Julia" {
-                    ui.text("Julia constant");
 
-                    {
-                        ui.set_next_item_width(-1.0);
-                        let _item_width_stack_token = ui.push_item_width(ui.calc_item_width()/2.0);
-                        Drag::new("##c.x").display_format("X: %f").speed(0.001).build(ui, &mut self.julia_constant[0]);
-                        ui.same_line();
-                        Drag::new("##c.y").display_format("Y: %f").speed(0.001).build(ui, &mut self.julia_constant[1]);
-                    }
-
-                    self.notify_observers(FractalChoice(Julia(self.julia_constant)));
-                } else {
-                    self.notify_observers(FractalChoice(Mandelbrot));
-                }
+                self.draw_fractal_combo(ui);
+                self.handle_fractal_constant(ui);
+                self.draw_hsv_scale(ui);
 
                 ui.text("Focus point");
                 {
@@ -110,31 +86,91 @@ impl PropertiesWindow {
                 ui.set_next_item_width(-1.0);
                 Drag::new("##zoom").display_format("%f").speed(0.1).build(ui, &mut self.zoom);
 
-                ui.text("Camera size");
-                ui.checkbox("Lock aspect ratio", &mut self.lock_aspect_ratio);
-                {
-                    ui.set_next_item_width(-1.0);
-                    let _item_width_stack_token = ui.push_item_width(ui.calc_item_width()/2.0);
-                    if Drag::new("##camera.width").display_format("Width: %f").speed(0.1).build(ui, &mut self.camera_width) && self.lock_aspect_ratio {
-                        self.camera_height = self.current_height as f32/self.current_width as f32 * self.camera_width
-                    }
-                    ui.same_line();
-                    if Drag::new("##camera.height").display_format("Height: %f").speed(0.1).build(ui, &mut self.camera_height) && self.lock_aspect_ratio {
-                        self.camera_width = self.current_width as f32/self.current_height as f32 * self.camera_height
-                    }
-                }
-
-                self.real_x_axis_range[0] = self.focus[0] - self.camera_width / 2.0 / self.zoom;
-                self.real_x_axis_range[1] = self.focus[0] + self.camera_width / 2.0 / self.zoom;
-                self.real_y_axis_range[0] = self.focus[1] - self.camera_height / 2.0 / self.zoom;
-                self.real_y_axis_range[1] = self.focus[1] + self.camera_height / 2.0 / self.zoom;
-
-                self.notify_observers(FractalAxisRange{x: self.real_x_axis_range, y: self.real_y_axis_range});
-
-                Drag::new("##max_iterations").display_format("Max iterations: %d").speed(1.0).build(ui, &mut self.max_iterations);
-
-                self.notify_observers(FractalIterations(self.max_iterations))
+                self.draw_camera_size(ui);
             });
+
+
+
+        self.real_x_axis_range[0] = self.focus[0] - self.camera_width / 2.0 / self.zoom;
+        self.real_x_axis_range[1] = self.focus[0] + self.camera_width / 2.0 / self.zoom;
+        self.real_y_axis_range[0] = self.focus[1] - self.camera_height / 2.0 / self.zoom;
+        self.real_y_axis_range[1] = self.focus[1] + self.camera_height / 2.0 / self.zoom;
+
+        if !ui.io().want_capture_mouse {
+            self.notify_observers(FractalAxisRange{x: self.real_x_axis_range, y: self.real_y_axis_range});
+        }
+    }
+
+    fn draw_fractal_combo(&mut self, ui: &Ui) {
+        ui.text("Fractal");
+        ui.same_line();
+        ui.set_next_item_width(-1.0);
+        if let Some(_cb) = ui.begin_combo("##fractal_combo", &self.items[self.selected_index]) {
+            for cur in &self.items {
+                if &self.items[self.selected_index] == cur {
+                    // Auto-scroll to selected item
+                    ui.set_item_default_focus();
+                }
+                // Create a "selectable"
+                let clicked = ui.selectable_config(cur)
+                    .selected(&self.items[self.selected_index] == cur)
+                    .build();
+                // When item is clicked, store it
+                if clicked {
+                    self.selected_index = self.items.iter().position(|item| item == cur).unwrap();
+                }
+            }
+        }
+    }
+
+    fn handle_fractal_constant(&mut self, ui: &Ui) {
+        if self.items[self.selected_index] == "Julia" {
+            ui.text("Julia constant");
+
+            ui.set_next_item_width(-1.0);
+            let _item_width_stack_token = ui.push_item_width(ui.calc_item_width() / 2.0);
+            Drag::new("##c.x").display_format("X: %f").speed(0.001).build(ui, &mut self.julia_constant[0]);
+            ui.same_line();
+            Drag::new("##c.y").display_format("Y: %f").speed(0.001).build(ui, &mut self.julia_constant[1]);
+
+            self.notify_observers(FractalChoice(Julia(self.julia_constant)));
+        } else {
+            self.notify_observers(FractalChoice(Mandelbrot));
+        }
+    }
+
+    fn draw_camera_size(&mut self, ui: &Ui) {
+        ui.text("Camera size");
+        if ui.checkbox("Lock aspect ratio", &mut self.lock_aspect_ratio) {
+            if self.lock_aspect_ratio {
+                self.camera_height = self.current_height as f32/self.current_width as f32 * self.camera_width
+            }
+        }
+
+        ui.set_next_item_width(-1.0);
+        let _item_width_stack_token = ui.push_item_width(ui.calc_item_width()/2.0);
+        if Drag::new("##camera.width").display_format("Width: %f").speed(0.1).build(ui, &mut self.camera_width) && self.lock_aspect_ratio {
+            self.camera_height = self.current_height as f32/self.current_width as f32 * self.camera_width
+        }
+        ui.same_line();
+        if Drag::new("##camera.height").display_format("Height: %f").speed(0.1).build(ui, &mut self.camera_height) && self.lock_aspect_ratio {
+            self.camera_width = self.current_width as f32/self.current_height as f32 * self.camera_height
+        }
+    }
+
+    fn draw_hsv_scale(&mut self, ui: &Ui) {
+        ui.text("HSV scale");
+        ui.set_next_item_width(-1.0);
+        let _item_width_stack_token = ui.push_item_width(ui.calc_item_width() / 3.0);
+        let h = Drag::new("##h_scale").display_format("H: %f").speed(0.001).build(ui, &mut self.hsv_scale[0]);
+        ui.same_line();
+        let s = Drag::new("##s_scale").display_format("S: %f").speed(0.001).build(ui, &mut self.hsv_scale[1]);
+        ui.same_line();
+        let v = Drag::new("##v_scale").display_format("V: %f").speed(0.001).build(ui, &mut self.hsv_scale[2]);
+
+        if h || s || v {
+            self.notify_observers(FractalHSVScaleChange{h: self.hsv_scale[0], s: self.hsv_scale[1], v: self.hsv_scale[2]});
+        }
     }
 }
 
