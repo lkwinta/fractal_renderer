@@ -3,7 +3,7 @@ use crate::renderer::{Program, Shader};
 use crate::resources::Resources;
 use gl;
 use gl::types::{GLuint, GLvoid};
-use crate::ui::state_instructions::{FractalInstruction, FractalType};
+use crate::ui::event_observer::{FractalType, Observer, ObserverEvent};
 
 
 pub struct FractalRenderer {
@@ -95,25 +95,6 @@ impl FractalRenderer {
         }
     }
 
-    pub fn handle_instruction(&self, instruction: &FractalInstruction) {
-        match instruction {
-            FractalInstruction::FractalIterations(iterations) => self.set_max_iterations(*iterations),
-            FractalInstruction::FractalChoice(fractal) => {
-                match fractal {
-                    FractalType::Julia(constant) => {
-                        self.set_julia(true);
-                        self.set_julia_constant(constant[0], constant[1]);
-                    }
-                    FractalType::Mandelbrot => self.set_julia(false)
-                }
-            }
-            FractalInstruction::FractalAxisRange { x, y } => {
-                self.set_x_axis_range(x[0], x[1]);
-                self.set_y_axis_range(y[0], y[1]);
-            }
-        }
-    }
-
     pub fn set_x_axis_range(&self, x: f32, y: f32) {
         self.program.use_program();
         self.program.set_f32_2(c"x_axis_range", x, y).unwrap();
@@ -146,6 +127,28 @@ impl FractalRenderer {
         unsafe {
             gl::BindVertexArray(self.vertex_array);
             gl::DrawElements(gl::TRIANGLES, 6, gl::UNSIGNED_INT, std::ptr::null());
+        }
+    }
+}
+
+impl Observer for FractalRenderer {
+    fn notify(&mut self, event: &ObserverEvent) {
+        match event {
+            ObserverEvent::FractalIterations(iterations) => self.set_max_iterations(*iterations),
+            ObserverEvent::FractalChoice(fractal) => {
+                match fractal {
+                    FractalType::Julia(constant) => {
+                        self.set_julia(true);
+                        self.set_julia_constant(constant[0], constant[1]);
+                    }
+                    FractalType::Mandelbrot => self.set_julia(false)
+                }
+            }
+            ObserverEvent::FractalAxisRange { x, y } => {
+                self.set_x_axis_range(x[0], x[1]);
+                self.set_y_axis_range(y[0], y[1]);
+            },
+            _ => { eprint!("Received unknown event in fractal_renderer!") }
         }
     }
 }

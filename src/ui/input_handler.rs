@@ -1,8 +1,8 @@
 use std::cell::RefCell;
-use std::rc::{Rc, Weak};
-use sdl2::event::Event;
+use std::rc::Rc;
+use sdl2::event::{Event, WindowEvent};
 use sdl2::keyboard::Keycode;
-use crate::ui::state_instructions::{Observable, Observer, ObserverEvent};
+use crate::ui::event_observer::{Observable, Observer, ObserverEvent};
 
 
 pub struct InputHandler {
@@ -48,24 +48,33 @@ impl InputHandler {
             Event::MouseMotion {xrel, yrel, ..} => {
                 if self.left_btn_down {
                     self.notify_observers(ObserverEvent::Translate{ xrel: -*xrel, yrel: *yrel});
-
                 }
-            }
+            },
+            Event::Window {
+                win_event, ..
+            } => {
+                match win_event {
+                    WindowEvent::Resized(width, height) => {
+                        self.notify_observers(ObserverEvent::WindowSizeChanged{width: *width, height: *height});
+                    },
+                    _ => {}
+                }
+            },
             _ => {}
         }
 
         true
+    }
+}
+
+impl Observable<'_> for InputHandler {
+    fn register_observer(&mut self, observer: Rc<RefCell<dyn Observer>>) {
+        self.observers.push(observer)
     }
 
     fn notify_observers(&mut self, event: ObserverEvent) {
         for observer in self.observers.iter() {
             observer.borrow_mut().notify(&event)
         }
-    }
-}
-
-impl Observable<'_> for InputHandler {
-    fn register(&mut self, observer: Rc<RefCell<dyn Observer>>) {
-        self.observers.push(observer)
     }
 }

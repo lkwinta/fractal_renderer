@@ -1,7 +1,8 @@
+use std::cell::RefCell;
+use std::rc::Rc;
 use imgui::{Drag, Ui};
-use crate::ui::state_instructions::FractalInstruction::{FractalAxisRange, FractalChoice, FractalIterations};
-use crate::ui::state_instructions::FractalType::{Julia, Mandelbrot};
-use crate::ui::state_instructions::{FractalInstruction, Observer, ObserverEvent, StateInstruction};
+use crate::ui::event_observer::FractalType::{Julia, Mandelbrot};
+use crate::ui::event_observer::{Observable, Observer, ObserverEvent::{FractalIterations, FractalChoice, FractalAxisRange}, ObserverEvent};
 
 pub struct PropertiesWindow {
     items: Vec<String>,
@@ -18,7 +19,10 @@ pub struct PropertiesWindow {
     max_iterations: i32,
 
     current_width: i32,
-    current_height: i32
+    current_height: i32,
+    lock_aspect_ratio: bool,
+
+    observers: Vec<Rc<RefCell<dyn Observer>>>
 }
 
 impl Default for PropertiesWindow {
@@ -39,18 +43,16 @@ impl Default for PropertiesWindow {
             max_iterations: 500,
 
             current_width: 800,
-            current_height: 600
+            current_height: 600,
+            lock_aspect_ratio: true,
+
+            observers: Vec::new()
         }
     }
 }
 
 impl PropertiesWindow {
-    pub fn draw(&mut self, ui: &mut Ui, current_width: i32, current_height: i32) -> Vec<FractalInstruction> {
-        self.current_width = current_width;
-        self.current_height = current_height;
-
-        let mut instructions: Vec<FractalInstruction> = Vec::new();
-
+    pub fn draw(&mut self, ui: &mut Ui) {
         ui.window("Properties")
             .size([300.0, 300.0], imgui::Condition::FirstUseEver)
             .movable(false)
@@ -89,9 +91,9 @@ impl PropertiesWindow {
                         Drag::new("##c.y").display_format("Y: %f").speed(0.001).build(ui, &mut self.julia_constant[1]);
                     }
 
-                    instructions.push(FractalChoice(Julia(self.julia_constant)));
+                    self.notify_observers(FractalChoice(Julia(self.julia_constant)));
                 } else {
-                    instructions.push(FractalChoice(Mandelbrot));
+                    self.notify_observers(FractalChoice(Mandelbrot));
                 }
 
                 ui.text("Focus point");
@@ -109,13 +111,17 @@ impl PropertiesWindow {
                 Drag::new("##zoom").display_format("%f").speed(0.1).build(ui, &mut self.zoom);
 
                 ui.text("Camera size");
+                ui.checkbox("Lock aspect ratio", &mut self.lock_aspect_ratio);
                 {
-                    ui.checkbox("Lock aspect ratio", &mut true);
                     ui.set_next_item_width(-1.0);
                     let _item_width_stack_token = ui.push_item_width(ui.calc_item_width()/2.0);
-                    Drag::new("##camera.width").display_format("Width: %f").speed(0.1).build(ui, &mut self.camera_width);
+                    if Drag::new("##camera.width").display_format("Width: %f").speed(0.1).build(ui, &mut self.camera_width) && self.lock_aspect_ratio {
+                        self.camera_height = self.current_height as f32/self.current_width as f32 * self.camera_width
+                    }
                     ui.same_line();
-                    Drag::new("##camera.height").display_format("Height: %f").speed(0.1).build(ui, &mut self.camera_height);
+                    if Drag::new("##camera.height").display_format("Height: %f").speed(0.1).build(ui, &mut self.camera_height) && self.lock_aspect_ratio {
+                        self.camera_width = self.current_width as f32/self.current_height as f32 * self.camera_height
+                    }
                 }
 
                 self.real_x_axis_range[0] = self.focus[0] - self.camera_width / 2.0 / self.zoom;
@@ -123,14 +129,12 @@ impl PropertiesWindow {
                 self.real_y_axis_range[0] = self.focus[1] - self.camera_height / 2.0 / self.zoom;
                 self.real_y_axis_range[1] = self.focus[1] + self.camera_height / 2.0 / self.zoom;
 
-                instructions.push(FractalAxisRange{x: self.real_x_axis_range, y: self.real_y_axis_range});
+                self.notify_observers(FractalAxisRange{x: self.real_x_axis_range, y: self.real_y_axis_range});
 
                 Drag::new("##max_iterations").display_format("Max iterations: %d").speed(1.0).build(ui, &mut self.max_iterations);
 
-                instructions.push(FractalIterations(self.max_iterations))
+                self.notify_observers(FractalIterations(self.max_iterations))
             });
-
-        instructions
     }
 }
 
@@ -143,7 +147,27 @@ impl Observer for PropertiesWindow {
                 self.focus[0] += *xrel as f32 / self.current_width as f32 / self.zoom;
                 self.focus[1] += *yrel as f32 / self.current_height as f32 / self.zoom;
             },
-            _ => {}
+            ObserverEvent::WindowSizeChanged {width, height} => {
+                self.current_width = *width;
+                self.current_height = *height;
+
+                if self.lock_aspect_ratio {
+                    self.camera_width = self.current_width as f32/self.current_height as f32 * self.camera_height
+                }
+            }
+            _ => { eprint!("Received unknown event in properties_window!") }
+        }
+    }
+}
+
+impl Observable<'_> for PropertiesWindow {
+    fn register_observer(&mut self, observer: Rc<RefCell<dyn Observer>>) {
+        self.observers.push(observer)
+    }
+
+    fn notify_observers(&mut self, event: ObserverEvent) {
+        for observer in self.observers.iter() {
+            observer.borrow_mut().notify(&event)
         }
     }
 }

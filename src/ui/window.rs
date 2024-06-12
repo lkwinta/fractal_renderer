@@ -3,7 +3,7 @@ use imgui_glow_renderer::{AutoRenderer, glow};
 use imgui_sdl2_support::SdlPlatform;
 use sdl2::video::{GLContext, GLProfile, WindowBuildError};
 use sdl2::{EventPump, Sdl, VideoSubsystem};
-use sdl2::event::{Event, EventPollIterator};
+use sdl2::event::Event;
 
 const WIDTH: u32 = 800;
 const HEIGHT: u32 = 800;
