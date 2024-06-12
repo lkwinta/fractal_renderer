@@ -43,38 +43,38 @@ impl Shader{
     }
 
     fn compile_shader(source: &CString, shader_type: GLenum) -> Result<GLuint, Error> {
+        let shader = unsafe {gl::CreateShader(shader_type)};
+
+        if shader == 0 {
+            return Err(Error::CompileError {
+                name: "Unknown".into(),
+                message: "Failed to create shader".into(),
+            });
+        }
+
         unsafe {
-            let shader = gl::CreateShader(shader_type);
-
-            if shader == 0 {
-                return Err(Error::CompileError {
-                    name: "Unknown".into(),
-                    message: "Failed to create shader".into(),
-                });
-            }
-
             gl::ShaderSource(shader, 1, &source.as_c_str().as_ptr(), std::ptr::null());
             gl::CompileShader(shader);
-
-            let mut success = 1;
-            gl::GetShaderiv(shader, gl::COMPILE_STATUS, &mut success);
-
-            if success == 0 {
-                let mut len = 0;
-                gl::GetShaderiv(shader, gl::INFO_LOG_LENGTH, &mut len);
-
-                let mut buffer = vec![0; len as usize];
-                gl::GetShaderInfoLog(shader, len, std::ptr::null_mut(), buffer.as_mut_ptr() as *mut GLchar);
-
-                let message = String::from_utf8(buffer).unwrap();
-                return Err(Error::CompileError {
-                    name: "Unknown".into(),
-                    message,
-                });
-            }
-
-            Ok(shader)
         }
+
+        let mut success = 1;
+        unsafe {gl::GetShaderiv(shader, gl::COMPILE_STATUS, &mut success)};
+
+        if success == 0 {
+            let mut len = 0;
+            unsafe {gl::GetShaderiv(shader, gl::INFO_LOG_LENGTH, &mut len)};
+
+            let mut buffer = vec![0; len as usize];
+            unsafe { gl::GetShaderInfoLog(shader, len, std::ptr::null_mut(), buffer.as_mut_ptr() as *mut GLchar) };
+
+            let message = String::from_utf8(buffer).unwrap();
+            return Err(Error::CompileError {
+                name: "Unknown".into(),
+                message,
+            });
+        }
+
+        Ok(shader)
     }
 
     pub fn id(&self) -> GLuint {
@@ -84,8 +84,6 @@ impl Shader{
 
 impl Drop for Shader {
     fn drop(&mut self) {
-        unsafe {
-            gl::DeleteShader(self.shader_id);
-        }
+        unsafe { gl::DeleteShader(self.shader_id); }
     }
 }

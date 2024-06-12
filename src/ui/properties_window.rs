@@ -1,7 +1,7 @@
 use imgui::{Drag, Ui};
 use crate::ui::state_instructions::FractalInstruction::{FractalAxisRange, FractalChoice, FractalIterations};
 use crate::ui::state_instructions::FractalType::{Julia, Mandelbrot};
-use crate::ui::state_instructions::{FractalInstruction, StateInstruction};
+use crate::ui::state_instructions::{FractalInstruction, Observer, ObserverEvent, StateInstruction};
 
 pub struct PropertiesWindow<'a> {
     items: Vec<&'a str>,
@@ -45,19 +45,10 @@ impl Default for PropertiesWindow<'_> {
 }
 
 impl PropertiesWindow<'_> {
-    pub fn handle_instruction(&mut self, instruction: &StateInstruction) {
-        match instruction {
-            StateInstruction::Zoom(zoom) => self.zoom *= zoom,
-            StateInstruction::UnZoom(zoom) => self.zoom /= zoom,
-            StateInstruction::Translate{xrel, yrel} => {
-                self.focus[0] += *xrel as f32 / self.current_width as f32 / self.zoom;
-                self.focus[1] += *yrel as f32 / self.current_height as f32 / self.zoom;
-            },
-            _ => {}
-        }
-    }
+    pub fn draw(&mut self, ui: &mut Ui, current_width: i32, current_height: i32) -> Vec<FractalInstruction> {
+        self.current_width = current_width;
+        self.current_height = current_height;
 
-    pub fn draw(&mut self, ui: &mut Ui) -> Vec<FractalInstruction> {
         let mut instructions: Vec<FractalInstruction> = Vec::new();
 
         ui.window("Properties")
@@ -71,7 +62,7 @@ impl PropertiesWindow<'_> {
                 ui.text("Fractal");
                 ui.same_line();
                 ui.set_next_item_width(-1.0);
-                if let Some(_cb) = ui.begin_combo("Fractal", self.selected) {
+                if let Some(_cb) = ui.begin_combo("##fractal_combo", self.selected) {
                     for cur in &self.items {
                         if &self.selected == cur {
                             // Auto-scroll to selected item
@@ -140,5 +131,19 @@ impl PropertiesWindow<'_> {
             });
 
         instructions
+    }
+}
+
+impl Observer for PropertiesWindow<'_> {
+    fn notify(&mut self, event: &ObserverEvent) {
+        match event {
+            ObserverEvent::Zoom(zoom) => self.zoom *= zoom,
+            ObserverEvent::UnZoom(zoom) => self.zoom /= zoom,
+            ObserverEvent::Translate{xrel, yrel} => {
+                self.focus[0] += *xrel as f32 / self.current_width as f32 / self.zoom;
+                self.focus[1] += *yrel as f32 / self.current_height as f32 / self.zoom;
+            },
+            _ => {}
+        }
     }
 }
