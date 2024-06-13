@@ -14,7 +14,8 @@ pub enum ObserverEvent {
     FractalIterations(i32),
     FractalChoice(FractalType),
     FractalAxisRange{x: [f32; 2], y: [f32; 2]},
-    FractalHSVScaleChange{h: f32, s: f32, v: f32}
+    FractalHSVScaleChange{h: f32, s: f32, v: f32},
+    FractalTerminalColorChange{r: f32, g: f32, b: f32},
 }
 
 pub trait Observer {

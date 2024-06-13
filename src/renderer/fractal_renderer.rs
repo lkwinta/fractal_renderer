@@ -127,6 +127,11 @@ impl FractalRenderer {
         self.program.set_f32_3(c"hsv_scale", h, s, v).unwrap();
     }
 
+    pub fn set_terminal_color(&self, h: f32, s: f32, v: f32) {
+        self.program.use_program();
+        self.program.set_f32_3(c"terminal_color", h, s, v).unwrap();
+    }
+
     pub fn render(&self, x: f32, y: f32) {
         self.program.use_program();
         self.program.set_f32_2(c"screen_size", x, y).unwrap();
@@ -156,6 +161,7 @@ impl Observer for FractalRenderer {
                 self.set_y_axis_range(y[0], y[1]);
             },
             ObserverEvent::FractalHSVScaleChange { h, s, v } => self.set_hsv_scale(*h, *s, *v),
+            ObserverEvent::FractalTerminalColorChange { r,g, b } => self.set_terminal_color(*r, *g, *b),
             _ => { eprint!("Received unknown event in fractal_renderer!") }
         }
     }

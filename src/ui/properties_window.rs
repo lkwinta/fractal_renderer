@@ -3,7 +3,7 @@ use std::rc::Rc;
 use imgui::{Drag, Ui};
 use crate::ui::event_observer::FractalType::{Julia, Mandelbrot};
 use crate::ui::event_observer::{Observable, Observer, ObserverEvent::{FractalIterations, FractalChoice, FractalAxisRange}, ObserverEvent};
-use crate::ui::event_observer::ObserverEvent::FractalHSVScaleChange;
+use crate::ui::event_observer::ObserverEvent::{FractalHSVScaleChange, FractalTerminalColorChange};
 
 pub struct PropertiesWindow {
     items: Vec<String>,
@@ -11,6 +11,7 @@ pub struct PropertiesWindow {
 
     julia_constant: [f32; 2],
     hsv_scale: [f32; 3],
+    terminal_color: [f32; 3],
     zoom: f32,
     focus: [f32; 2],
     camera_width: f32,
@@ -24,6 +25,8 @@ pub struct PropertiesWindow {
     current_height: i32,
     lock_aspect_ratio: bool,
 
+    window_hovered: bool,
+
     observers: Vec<Rc<RefCell<dyn Observer>>>
 }
 
@@ -36,6 +39,7 @@ impl Default for PropertiesWindow {
 
             julia_constant: [-0.8, 0.156],
             hsv_scale: [1.0, 1.0, 1.0],
+            terminal_color: [0.0, 0.0, 0.0],
             zoom: 1.0,
             focus: [0.0, 0.0],
             camera_width: 2.0,
@@ -49,6 +53,8 @@ impl Default for PropertiesWindow {
             current_height: 600,
             lock_aspect_ratio: true,
 
+            window_hovered: false,
+
             observers: Vec::new()
         }
     }
@@ -57,7 +63,7 @@ impl Default for PropertiesWindow {
 impl PropertiesWindow {
     pub fn draw(&mut self, ui: &mut Ui) {
         ui.window("Properties")
-            .size([300.0, 300.0], imgui::Condition::FirstUseEver)
+            .size([300.0, 600.0], imgui::Condition::FirstUseEver)
             .movable(false)
             .position([self.current_width as f32, 0.0], imgui::Condition::Always)
             .position_pivot([1.0, 0.0])
@@ -71,6 +77,7 @@ impl PropertiesWindow {
                 self.draw_fractal_combo(ui);
                 self.handle_fractal_constant(ui);
                 self.draw_hsv_scale(ui);
+                self.draw_terminal_color(ui);
 
                 ui.text("Focus point");
                 {
@@ -87,18 +94,15 @@ impl PropertiesWindow {
                 Drag::new("##zoom").display_format("%f").speed(0.1).build(ui, &mut self.zoom);
 
                 self.draw_camera_size(ui);
+                self.window_hovered = ui.io().want_capture_mouse;
             });
-
-
 
         self.real_x_axis_range[0] = self.focus[0] - self.camera_width / 2.0 / self.zoom;
         self.real_x_axis_range[1] = self.focus[0] + self.camera_width / 2.0 / self.zoom;
         self.real_y_axis_range[0] = self.focus[1] - self.camera_height / 2.0 / self.zoom;
         self.real_y_axis_range[1] = self.focus[1] + self.camera_height / 2.0 / self.zoom;
 
-        if !ui.io().want_capture_mouse {
-            self.notify_observers(FractalAxisRange{x: self.real_x_axis_range, y: self.real_y_axis_range});
-        }
+        self.notify_observers(FractalAxisRange{x: self.real_x_axis_range, y: self.real_y_axis_range});
     }
 
     fn draw_fractal_combo(&mut self, ui: &Ui) {
@@ -162,24 +166,33 @@ impl PropertiesWindow {
         ui.text("HSV scale");
         ui.set_next_item_width(-1.0);
         let _item_width_stack_token = ui.push_item_width(ui.calc_item_width() / 3.0);
-        let h = Drag::new("##h_scale").display_format("H: %f").speed(0.001).build(ui, &mut self.hsv_scale[0]);
+        let h = Drag::new("##h_scale").display_format("H: %f").speed(0.01).range(0.0, 1.0).build(ui, &mut self.hsv_scale[0]);
         ui.same_line();
-        let s = Drag::new("##s_scale").display_format("S: %f").speed(0.001).build(ui, &mut self.hsv_scale[1]);
+        let s = Drag::new("##s_scale").display_format("S: %f").speed(0.01).range(0.0, 1.0).build(ui, &mut self.hsv_scale[1]);
         ui.same_line();
-        let v = Drag::new("##v_scale").display_format("V: %f").speed(0.001).build(ui, &mut self.hsv_scale[2]);
+        let v = Drag::new("##v_scale").display_format("V: %f").speed(0.01).range(0.0, 1.0).build(ui, &mut self.hsv_scale[2]);
 
         if h || s || v {
             self.notify_observers(FractalHSVScaleChange{h: self.hsv_scale[0], s: self.hsv_scale[1], v: self.hsv_scale[2]});
+        }
+    }
+
+    fn draw_terminal_color(&mut self, ui: &Ui) {
+        ui.text("Terminal color");
+        ui.same_line();
+        if ui.color_picker3("##terminal_color", &mut self.terminal_color) {
+            self.notify_observers(FractalTerminalColorChange{r: self.terminal_color[0], g: self.terminal_color[1], b: self.terminal_color[2]});
         }
     }
 }
 
 impl Observer for PropertiesWindow {
     fn notify(&mut self, event: &ObserverEvent) {
+
         match event {
-            ObserverEvent::Zoom(zoom) => self.zoom *= zoom,
-            ObserverEvent::UnZoom(zoom) => self.zoom /= zoom,
-            ObserverEvent::Translate{xrel, yrel} => {
+            ObserverEvent::Zoom(zoom) if !self.window_hovered => self.zoom *= zoom,
+            ObserverEvent::UnZoom(zoom) if !self.window_hovered  => self.zoom /= zoom,
+            ObserverEvent::Translate{xrel, yrel} if !self.window_hovered  => {
                 self.focus[0] += *xrel as f32 / self.current_width as f32 / self.zoom;
                 self.focus[1] += *yrel as f32 / self.current_height as f32 / self.zoom;
             },
@@ -191,7 +204,7 @@ impl Observer for PropertiesWindow {
                     self.camera_width = self.current_width as f32/self.current_height as f32 * self.camera_height
                 }
             }
-            _ => { eprint!("Received unknown event in properties_window!") }
+            _ => {}
         }
     }
 }
