@@ -1,6 +1,6 @@
 use std::cell::RefCell;
 use std::rc::Rc;
-use imgui::{Drag, Ui};
+use imgui::{ColorPickerMode, Drag, Ui};
 use crate::ui::event_observer::FractalType::{Julia, Mandelbrot};
 use crate::ui::event_observer::{Observable, Observer, ObserverEvent::{FractalIterations, FractalChoice, FractalAxisRange}, ObserverEvent};
 use crate::ui::event_observer::ObserverEvent::{FractalHSVScaleChange, FractalTerminalColorChange};
@@ -63,15 +63,18 @@ impl Default for PropertiesWindow {
 impl PropertiesWindow {
     pub fn draw(&mut self, ui: &mut Ui) {
         ui.window("Properties")
-            .size([300.0, 600.0], imgui::Condition::FirstUseEver)
+            .size([350.0, 600.0], imgui::Condition::FirstUseEver)
             .movable(false)
             .position([self.current_width as f32, 0.0], imgui::Condition::Always)
             .position_pivot([1.0, 0.0])
             .collapsible(false)
             .resizable(false)
             .build(|| {
-                if Drag::new("##max_iterations").display_format("Max iterations: %d").speed(1.0).build(ui, &mut self.max_iterations) {
-                    self.notify_observers(FractalIterations(self.max_iterations))
+                {
+                    ui.set_next_item_width(-1.0);
+                    if Drag::new("##max_iterations").display_format("Max iterations: %d").speed(1.0).build(ui, &mut self.max_iterations) {
+                        self.notify_observers(FractalIterations(self.max_iterations))
+                    }
                 }
 
                 self.draw_fractal_combo(ui);
@@ -88,10 +91,12 @@ impl PropertiesWindow {
                     Drag::new("##focus.y").display_format("Y: %f").speed(0.001).build(ui, &mut self.focus[1]);
                 }
 
-                ui.text("Zoom level");
-                ui.same_line();
-                ui.set_next_item_width(-1.0);
-                Drag::new("##zoom").display_format("%f").speed(0.1).build(ui, &mut self.zoom);
+                {
+                    ui.set_next_item_width(-1.0);
+                    ui.text("Zoom level");
+                    ui.same_line();
+                    Drag::new("##zoom").display_format("%f").speed(0.1).build(ui, &mut self.zoom);
+                }
 
                 self.draw_camera_size(ui);
                 self.window_hovered = ui.io().want_capture_mouse;
@@ -178,9 +183,10 @@ impl PropertiesWindow {
     }
 
     fn draw_terminal_color(&mut self, ui: &Ui) {
+        ui.set_next_item_width(-1.0);
         ui.text("Terminal color");
-        ui.same_line();
-        if ui.color_picker3("##terminal_color", &mut self.terminal_color) {
+
+        if ui.color_picker3_config("##terminal_color", &mut self.terminal_color).mode(ColorPickerMode::HueWheel).build() {
             self.notify_observers(FractalTerminalColorChange{r: self.terminal_color[0], g: self.terminal_color[1], b: self.terminal_color[2]});
         }
     }
