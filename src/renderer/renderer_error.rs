@@ -1,5 +1,6 @@
 use crate::resources;
 
+/// Error type for the renderer module
 #[derive(Debug)]
 pub enum Error {
     ResourceLoad { name:String, inner: resources::Error},
